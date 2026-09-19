@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@supabase/supabase-js";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
@@ -437,22 +437,31 @@ function CasualtyOverloadAlert({
 }
 
 export default function Home() {
-  const [engineRpm, setEngineRpm] = useState(1800);
+  const [localRpm, setLocalRpm] = useState(1800);
+  const [localHr, setLocalHr] = useState(78);
+  const [dbRpm, setDbRpm] = useState(1800);
+  const [dbHr, setDbHr] = useState(78);
   const [jacketWater, setJacketWater] = useState(160);
   const [solarKw, setSolarKw] = useState(0);
   const [dampRate, setDampRate] = useState(72);
-  const [operatorHr, setOperatorHr] = useState(78);
+  const lastInteractionTime = useRef(0);
+
+  const markInteraction = () => {
+    lastInteractionTime.current = Date.now();
+  };
+
+  const setLocalRpmFromUi = (next: number) => {
+    markInteraction();
+    setLocalRpm(next);
+  };
+
+  const setLocalHrFromUi = (next: number) => {
+    markInteraction();
+    setLocalHr(next);
+  };
 
   useEffect(() => {
     let active = true;
-
-    const applyRow = (row: TelemetryRow | null | undefined) => {
-      if (!row) return;
-      const nextRpm = asNumber(row.engine_rpm);
-      const nextHr = asNumber(row.operator_hr);
-      if (nextRpm !== null) setEngineRpm(nextRpm);
-      if (nextHr !== null) setOperatorHr(nextHr);
-    };
 
     const loadInitial = async () => {
       const { data, error } = await supabase
@@ -465,7 +474,18 @@ export default function Home() {
         console.error("telemetry_state fetch failed", error.message);
         return;
       }
-      if (active) applyRow(data);
+      if (!active || !data) return;
+
+      const nextRpm = asNumber(data.engine_rpm);
+      const nextHr = asNumber(data.operator_hr);
+      if (nextRpm !== null) {
+        setDbRpm(nextRpm);
+        setLocalRpm(nextRpm);
+      }
+      if (nextHr !== null) {
+        setDbHr(nextHr);
+        setLocalHr(nextHr);
+      }
     };
 
     void loadInitial();
@@ -481,7 +501,17 @@ export default function Home() {
           filter: "id=eq.1",
         },
         (payload) => {
-          applyRow(payload.new as TelemetryRow);
+          const row = payload.new as TelemetryRow;
+          const nextRpm = asNumber(row.engine_rpm);
+          const nextHr = asNumber(row.operator_hr);
+          if (nextRpm !== null) setDbRpm(nextRpm);
+          if (nextHr !== null) setDbHr(nextHr);
+
+          const idleMs = Date.now() - lastInteractionTime.current;
+          if (idleMs < 1500) return;
+
+          if (nextRpm !== null) setLocalRpm(nextRpm);
+          if (nextHr !== null) setLocalHr(nextHr);
         },
       )
       .subscribe();
@@ -492,20 +522,26 @@ export default function Home() {
     };
   }, []);
 
-  const setEngineRpmAndPersist = (next: number) => {
-    setEngineRpm(next);
-    void persistTelemetry({ engine_rpm: next });
-  };
+  useEffect(() => {
+    if (localRpm === dbRpm && localHr === dbHr) return;
 
-  const setOperatorHrAndPersist = (next: number) => {
-    setOperatorHr(next);
-    void persistTelemetry({ operator_hr: next });
-  };
+    const timer = window.setTimeout(() => {
+      void persistTelemetry({
+        engine_rpm: localRpm,
+        operator_hr: localHr,
+      }).then(() => {
+        setDbRpm(localRpm);
+        setDbHr(localHr);
+      });
+    }, 500);
 
-  const isPlantNominal = engineRpm < 2000;
-  const isPlantCasualty = engineRpm > 2000;
-  const isOperatorOverloaded = operatorHr > 120;
-  const isOperatorCalm = operatorHr <= 120;
+    return () => window.clearTimeout(timer);
+  }, [localRpm, localHr, dbRpm, dbHr]);
+
+  const isPlantNominal = localRpm < 2000;
+  const isPlantCasualty = localRpm > 2000;
+  const isOperatorOverloaded = localHr > 120;
+  const isOperatorCalm = localHr <= 120;
   const isState2 = isPlantNominal && isOperatorOverloaded;
   const isState3 = isPlantCasualty && isOperatorCalm;
   const isState4 = isPlantCasualty && isOperatorOverloaded;
@@ -513,7 +549,7 @@ export default function Home() {
   const telemetry = useMemo(
     () => ({
       portDiesel: {
-        rpm: engineRpm,
+        rpm: localRpm,
         jacket: jacketWater,
         lube: 62,
         fuel: 45,
@@ -521,7 +557,7 @@ export default function Home() {
         turbo2: 42200,
       },
       stbdDiesel: {
-        rpm: engineRpm,
+        rpm: localRpm,
         jacket: jacketWater + 2,
         lube: 60,
         fuel: 44,
@@ -532,18 +568,18 @@ export default function Home() {
         load: 250,
         voltage: 450,
         hz: "60.0",
-        rpm: engineRpm,
+        rpm: localRpm,
         jacket: jacketWater - 5,
       },
       stbdGen: {
         load: 248,
         voltage: 450,
         hz: "60.0",
-        rpm: engineRpm,
+        rpm: localRpm,
         jacket: jacketWater - 3,
       },
     }),
-    [engineRpm, jacketWater],
+    [localRpm, jacketWater],
   );
 
   return (
@@ -554,13 +590,13 @@ export default function Home() {
     >
       {isState4 ? (
         <CasualtyOverloadAlert
-          rpm={engineRpm}
-          onSecureDiesel={() => setEngineRpmAndPersist(600)}
+          rpm={localRpm}
+          onSecureDiesel={() => setLocalRpmFromUi(600)}
         />
       ) : isState3 ? (
-        <CasualtyCalmPanel rpm={engineRpm} jacket={jacketWater + 2} />
+        <CasualtyCalmPanel rpm={localRpm} jacket={jacketWater + 2} />
       ) : isState2 ? (
-        <PlantNominalCalm operatorHr={operatorHr} />
+        <PlantNominalCalm operatorHr={localHr} />
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-12 grid-rows-[auto_1fr] overflow-hidden">
       <header className="col-span-12 grid grid-cols-12 items-center gap-3 border-b border-neutral-800 px-3 py-1.5 xl:px-4">
@@ -824,7 +860,7 @@ export default function Home() {
         <div className="col-span-10 grid grid-cols-5 gap-4 xl:gap-6">
           <DockSlider
             label="Operator HR"
-            value={operatorHr}
+            value={localHr}
             unit="BPM"
             min={50}
             max={180}
@@ -842,7 +878,7 @@ export default function Home() {
                   ? "text-amber-400"
                   : "text-teal-400"
             }
-            onChange={setOperatorHrAndPersist}
+            onChange={setLocalHrFromUi}
           />
           <DockSlider
             label="Solar PV Inverters"
@@ -862,7 +898,7 @@ export default function Home() {
           />
           <DockSlider
             label="Engine RPM"
-            value={engineRpm}
+            value={localRpm}
             unit="RPM"
             min={600}
             max={3200}
@@ -877,7 +913,7 @@ export default function Home() {
                   ? "text-amber-500"
                   : "text-teal-400"
             }
-            onChange={setEngineRpmAndPersist}
+            onChange={setLocalRpmFromUi}
           />
           <DockSlider
             label="Jacket Water Temp"
