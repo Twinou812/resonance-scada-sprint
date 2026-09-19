@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #d4d4d4;
+  --phosphor: #2dd4bf;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.scada-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.scada-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--phosphor);
+  border: 0;
+  margin-top: -4px;
+}
+
+.scada-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--phosphor);
+  border: 0;
+}
+
+.scada-slider::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 999px;
+}
+
+.scada-slider::-moz-range-track {
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
