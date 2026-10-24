@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Resonance SCADA
 
-## Getting Started
+**An adaptive engine-room interface that treats the operator's heart rate and the machine's telemetry as one feedback loop. As stress rises, the screen sheds data.**
 
-First, run the development server:
+Built solo at the Cursor hackathon in Austin, TX on September 19, 2026.
+
+**Live demo:** [resonance-scada-sprint.vercel.app](https://resonance-scada-sprint.vercel.app) · **Built with:** Next.js 16, React 19, Tailwind CSS 4, TypeScript, Supabase Realtime, Vercel
+
+<!-- Add a screenshot or GIF of all four states here: docs/states.gif -->
+
+---
+
+## The problem
+
+In an alarm cascade, the weak link is not sensor latency. It is the operator's working memory. A stressed watchstander scanning 28+ gauges misses most of them, and conventional SCADA screens show the same density whether the plant is fine or on fire, and whether the person reading them is calm or overloaded.
+
+## The scenario
+
+The engine room of an 87-foot Coast Guard patrol boat: two MTU 16V main diesels and two ship's service generators. I stood watch in spaces like this for eight years as a machinery technician, so the gauges, values and casualty procedure come from that experience.
+
+## How it works: four states from two inputs
+
+The interface reads two signals: **engine RPM** (plant state) and **operator heart rate** (human state). Together they select one of four layouts.
+
+| State | Plant | Operator | What the screen does |
+|---|---|---|---|
+| **1 · Baseline** | Nominal (< 2,000 RPM) | Calm (≤ 120 bpm) | Full four-quadrant overview, 28 channels, three-tier type scale |
+| **2 · Calm mirror** | Nominal | Overloaded (> 120 bpm) | Clears to **PLANT NOMINAL** so the operator doesn't panic over a safe plant |
+| **3 · Isolate** | Casualty (> 2,000 RPM) | Calm | Isolates the failing loop in amber and shows only the diagnostic pressures |
+| **4 · Triage** | Casualty | Overloaded | Black screen, three critical values and one directive: isolate Turbo 1 lube oil |
+
+## Design decisions
+
+- **AI never touches the safety loop.** The mechanical alarm logic is a fixed, deterministic state machine. Adaptation happens only in the presentation layer.
+- **ISA-101 high-performance HMI.** Dark slate background, grayscale by default, and color reserved for anomalies so it means something when it appears.
+- **Prioritize, don't delete.** Secondary systems drop off the screen in high-load states but stay logged.
+- **Deltas, not diagnoses.** Biometric triggers look for sudden changes rather than clinical thresholds, so a watchstander climbing a ladder doesn't trip the system.
+- **Adoption is a design problem.** Operators resist automation that takes control away. The F-16 Auto-GCAS story, where pilots distrusted a ground-collision override until it started saving lives, shaped how the states hand control back.
+
+## Architecture
+
+- A single-row Supabase table, `telemetry_state` (`engine_rpm`, `operator_hr`), holds the shared state with row-level security enabled.
+- Demo sliders stand in for the sensors. Slider changes are debounced 500 ms and written to Supabase; every open viewer receives the update over a Realtime `postgres_changes` subscription.
+- Local and database values are tracked separately. Incoming updates are ignored for 1.5 s after a local interaction, which fixed a race where remote echoes snapped the slider back mid-drag.
+
+## Run it locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create `.env.local` with:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app expects a `telemetry_state` table with one row (`id = 1`) and Realtime enabled on that table.
 
-## Learn More
+## Status
 
-To learn more about Next.js, take a look at the following resources:
+Hackathon prototype. All three commits were made on event day. Telemetry other than RPM and heart rate is simulated. Next steps: live wearable input (Fitbit Sense 2) and a per-operator baseline for heart-rate deltas.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Author
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Jonathan Kattner** — AI UX designer and systems architect. Former Coast Guard machinery technician.
