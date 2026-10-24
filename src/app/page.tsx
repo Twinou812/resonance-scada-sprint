@@ -539,7 +539,7 @@ export default function Home() {
   }, [localRpm, localHr, dbRpm, dbHr]);
 
   const isPlantNominal = localRpm < 2000;
-  const isPlantCasualty = localRpm > 2000;
+  const isPlantCasualty = localRpm >= 2000;
   const isOperatorOverloaded = localHr > 120;
   const isOperatorCalm = localHr <= 120;
   const isState2 = isPlantNominal && isOperatorOverloaded;
