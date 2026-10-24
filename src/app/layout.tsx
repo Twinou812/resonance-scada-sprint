@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Resonance SCADA — State 1",
+  title: "Resonance SCADA",
   description: "Adaptive high-density overview for high cognitive load environments",
 };
 

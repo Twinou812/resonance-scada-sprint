@@ -41,6 +41,7 @@ The interface reads two signals: **engine RPM** (plant state) and **operator hea
 
 - A single-row Supabase table, `telemetry_state` (`engine_rpm`, `operator_hr`), holds the shared state with row-level security enabled.
 - Demo sliders stand in for the sensors. Slider changes are debounced 500 ms and written to Supabase; every open viewer receives the update over a Realtime `postgres_changes` subscription.
+- A daily Vercel cron (`vercel.json`) calls `/api/keepalive`, which reads the `telemetry_state` row so the free-tier Supabase project never pauses from inactivity.
 - Local and database values are tracked separately. Incoming updates are ignored for 1.5 s after a local interaction, which fixed a race where remote echoes snapped the slider back mid-drag.
 
 ## Run it locally

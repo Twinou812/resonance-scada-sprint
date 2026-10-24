@@ -546,6 +546,18 @@ export default function Home() {
   const isState3 = isPlantCasualty && isOperatorCalm;
   const isState4 = isPlantCasualty && isOperatorOverloaded;
 
+  const stateLabel = isState4
+    ? "State 4 · Triage"
+    : isState3
+      ? "State 3 · Isolate"
+      : isState2
+        ? "State 2 · Calm mirror"
+        : "State 1 · Baseline";
+
+  useEffect(() => {
+    document.title = `Resonance SCADA — ${stateLabel}`;
+  }, [stateLabel]);
+
   const telemetry = useMemo(
     () => ({
       portDiesel: {
