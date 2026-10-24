@@ -6,7 +6,7 @@ Built solo at the Cursor hackathon in Austin, TX on September 19, 2026.
 
 **Live demo:** [resonance-scada-sprint.vercel.app](https://resonance-scada-sprint.vercel.app) · **Built with:** Next.js 16, React 19, Tailwind CSS 4, TypeScript, Supabase Realtime, Vercel
 
-<!-- Add a screenshot or GIF of all four states here: docs/states.gif -->
+![Resonance SCADA cycling through all four states](docs/states.gif)
 
 ---
 
@@ -28,6 +28,14 @@ The interface reads two signals: **engine RPM** (plant state) and **operator hea
 | **2 · Calm mirror** | Nominal | Overloaded (> 120 bpm) | Clears to **PLANT NOMINAL** so the operator doesn't panic over a safe plant |
 | **3 · Isolate** | Casualty (> 2,000 RPM) | Calm | Isolates the failing loop in amber and shows only the diagnostic pressures |
 | **4 · Triage** | Casualty | Overloaded | Black screen, three critical values and one directive: isolate Turbo 1 lube oil |
+
+### The four states
+
+| 1 · Baseline | 2 · Calm mirror |
+|---|---|
+| ![State 1: full four-quadrant overview](docs/states/state-1-baseline.png) | ![State 2: PLANT NOMINAL with operator-overload prompt](docs/states/state-2-calm-mirror.png) |
+| **3 · Isolate** | **4 · Triage** |
+| ![State 3: starboard diesel isolated in amber](docs/states/state-3-isolate.png) | ![State 4: runaway casualty with a single directive](docs/states/state-4-triage.png) |
 
 ## Design decisions
 
